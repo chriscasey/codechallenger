@@ -1,0 +1,19 @@
+# IntelliJ
+.idea/
+*.iml
+out/
+
+# Gradle
+.gradle/
+build/
+
+# Logs
+*.log
+
+# OS Files
+.DS_Store
+
+# Environment
+*.env
+application.properties
+application.yml
