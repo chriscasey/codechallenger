@@ -17,6 +17,8 @@ security.jwt.refresh-token.expiration=604800000
 openai.api.key=CHANGE_ME_API_KEY
 openai.api.url=https://api.openai.com/v1/chat/completions
 openai.model=gpt-4o-mini
+openai.temperature=0.7
+openai.timeout.seconds=30
 
 # Logging
 logging.level.com.chriscasey.codechallenger=DEBUG
