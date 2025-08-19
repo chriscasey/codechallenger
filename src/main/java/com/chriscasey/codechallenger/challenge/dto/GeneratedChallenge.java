@@ -4,8 +4,7 @@ public record GeneratedChallenge(
         String title,
         String description,
         int solution,
-        int difficulty,
-        String prompt
+        int difficulty
 ) {}
 
 

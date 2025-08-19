@@ -5,9 +5,9 @@ import com.chriscasey.codechallenger.challenge.dto.CodeChallengeResponse;
 import com.chriscasey.codechallenger.challenge.dto.GeneratedChallenge;
 import com.chriscasey.codechallenger.challenge.mapper.CodeChallengeMapper;
 import com.chriscasey.codechallenger.exception.NotFoundException;
-import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -19,24 +19,14 @@ public class CodeChallengeService {
     private final CodeChallengeRepository repository;
     private final CodeChallengeGenerator generator;
 
+    @Transactional(readOnly = true)
     public List<CodeChallenge> getAllForUser(User user) {
         return repository.findByUser(user);
     }
 
     public void createChallenge(User user) {
         int difficulty = determineDifficulty(user);
-        GeneratedChallenge generated = generator.generate(difficulty);
-
-        CodeChallenge challenge = CodeChallenge.builder()
-                .user(user)
-                .title(generated.title())
-                .description(generated.description())
-                .solution(generated.solution())
-                .difficulty(difficulty)
-                .status(ChallengeStatus.PENDING)
-                .build();
-
-        repository.save(challenge);
+        generateAndPersistChallenge(user, difficulty);
     }
 
     @Transactional
@@ -55,8 +45,7 @@ public class CodeChallengeService {
             challenge.setFailedAttempts(challenge.getFailedAttempts() + 1);
         }
 
-
-        repository.save(challenge);
+        // Rely on JPA dirty checking — no explicit save needed within @Transactional
         return CodeChallengeMapper.toResponse(challenge);
     }
 
@@ -71,11 +60,49 @@ public class CodeChallengeService {
 
         challenge.setStatus(ChallengeStatus.SKIPPED);
         challenge.setCompletedAt(LocalDateTime.now());
-        repository.save(challenge);
 
-        createChallenge(user); // Create a new challenge with same user + updated difficulty
+        // No explicit save; JPA will flush changes at transaction commit
+
+        // Create a new challenge with same user + updated difficulty
+        int nextDifficulty = determineDifficulty(user);
+        generateAndPersistChallenge(user, nextDifficulty);
     }
 
+    @Transactional
+    public CodeChallengeResponse generateNewChallenge(User user) {
+        int difficulty = determineDifficulty(user);
+        CodeChallenge created = generateAndPersistChallenge(user, difficulty);
+        return CodeChallengeMapper.toResponse(created);
+    }
+
+    @Transactional
+    public CodeChallengeResponse generateNewChallenge(User user, Integer overrideDifficulty) {
+        int difficulty = (overrideDifficulty != null) ? clampDifficulty(overrideDifficulty) : determineDifficulty(user);
+        CodeChallenge created = generateAndPersistChallenge(user, difficulty);
+        return CodeChallengeMapper.toResponse(created);
+    }
+
+    // Consolidated generation/persist logic
+    private CodeChallenge generateAndPersistChallenge(User user, int difficulty) {
+        GeneratedChallenge generated = generator.generate(difficulty);
+        CodeChallenge challenge = CodeChallenge.builder()
+                .user(user)
+                .title(generated.title())
+                .description(generated.description())
+                .solution(generated.solution())
+                .difficulty(difficulty)
+                .status(ChallengeStatus.PENDING)
+                .failedAttempts(0)
+                .completedAt(null)
+                .build();
+        return repository.save(challenge);
+    }
+
+    private int clampDifficulty(int difficulty) {
+        if (difficulty < 1) return 1;
+        if (difficulty > 5) return 5;
+        return difficulty;
+    }
 
     private int determineDifficulty(User user) {
         // Basic implementation: make it harder as user completes more

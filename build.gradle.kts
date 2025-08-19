@@ -31,7 +31,6 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-web")
     implementation("org.springframework.boot:spring-boot-starter-data-jpa")
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
-    implementation("com.fasterxml.jackson.core:jackson-databind:2.17.1")
 	compileOnly("org.projectlombok:lombok:1.18.30")
 	annotationProcessor("org.projectlombok:lombok:1.18.30")
 	runtimeOnly("io.jsonwebtoken:jjwt-impl:0.11.5")
