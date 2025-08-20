@@ -55,7 +55,8 @@ public class SecurityConfig {
                                 "/api/auth/**",
                                 "/v3/api-docs/**",
                                 "/swagger-ui/**",
-                                "/swagger-ui.html"
+                                "/swagger-ui.html",
+                                "/h2-console/**" // <--- Add this line
                         ).permitAll()
                         // Admin-only endpoint (use @PreAuthorize/@RolesAllowed too)
                         .requestMatchers(HttpMethod.GET, "/api/admin/**").hasRole("ADMIN")
@@ -63,7 +64,14 @@ public class SecurityConfig {
                         .anyRequest().authenticated()
                 )
                 .authenticationProvider(authenticationProvider)
-                .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
+                .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class)
+                // Add these two lines:
+                .csrf(csrf -> csrf
+                        .ignoringRequestMatchers("/h2-console/**").disable())
+                .headers(headers -> headers
+                        .frameOptions(frameOptions -> frameOptions
+                                .disable()));
+        // ^^^ This disables X-Frame-Options so that browser frames work for H2
 
         return http.build();
     }

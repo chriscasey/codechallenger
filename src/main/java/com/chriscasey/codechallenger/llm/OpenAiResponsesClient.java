@@ -4,16 +4,16 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import okhttp3.MediaType;
-import okhttp3.OkHttpClient;
-import okhttp3.Request;
-import okhttp3.RequestBody;
-import okhttp3.Response;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
-import java.io.IOException;
+import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map;
+import com.theokanning.openai.service.OpenAiService;
+import com.theokanning.openai.completion.chat.ChatCompletionRequest;
+import com.theokanning.openai.completion.chat.ChatMessage;
+import java.util.List;
 
 @Component
 @RequiredArgsConstructor
@@ -23,14 +23,14 @@ public class OpenAiResponsesClient {
 
     private final ObjectMapper objectMapper;
 
-    @Value("${openai.api.base}")
+    @Value("${openai.api.base:}")
     private String baseUrl;
 
     @Value("${openai.api.key}")
     private String apiKey;
 
-    // e.g. gpt-5.0, gpt-5-mini, etc.
-    @Value("${openai.model:gpt-5.0}")
+    // e.g. gpt-4o-mini (ensure the model is available for your key)
+    @Value("${openai.model:gpt-4o-mini}")
     private String model;
 
     // Optional tuning (leave blank to skip)
@@ -40,52 +40,43 @@ public class OpenAiResponsesClient {
     @Value("${openai.reasoning.effort:}")
     private String reasoningEffort;      // minimal | low | medium | high
 
-    private final OkHttpClient http = new OkHttpClient();
+    @Value("${openai.timeout.seconds:30}")
+    private long timeoutSeconds;
+
+    @Value("${openai.temperature:1}")
+    private double temperature;
 
     /**
-     * Calls the OpenAI Responses API (/v1/responses) with text output.
-     * - Uses "text.format = json" to strongly bias JSON output.
-     * - Moves verbosity under "text.verbosity".
+     * Calls OpenAI Chat Completions and wraps the assistant text into:
+     * { "output_text": "..." } so downstream parsing remains unchanged.
      */
     public JsonNode createResponse(String system, String user) {
+        OpenAiService service = new OpenAiService(apiKey, Duration.ofSeconds(timeoutSeconds));
+
+        ChatCompletionRequest request = ChatCompletionRequest.builder()
+                .model(model)
+                .messages(List.of(
+                        new ChatMessage("system", system),
+                        new ChatMessage("user", user)
+                ))
+                .temperature(temperature)
+                .n(1)
+                .build();
+
+        String content;
         try {
-            Map<String, Object> body = new HashMap<>();
-            body.put("model", model);
-
-            // Simple single string input. (If you prefer "input: [{role, content}, ...]" we can switch.)
-            body.put("input", system + "\n\n" + user);
-
-            // Optional reasoning controls
-            if (reasoningEffort != null && !reasoningEffort.isBlank()) {
-                Map<String, Object> reasoning = new HashMap<>();
-                reasoning.put("effort", reasoningEffort); // minimal|low|medium|high
-                body.put("reasoning", reasoning);
+            var result = service.createChatCompletion(request);
+            if (result == null || result.getChoices() == null || result.getChoices().isEmpty()) {
+                throw new RuntimeException("OpenAI returned no choices");
             }
-
-            // ✅ All text-related options go under "text"
-            Map<String, Object> text = new HashMap<>();
-            text.put("format", "json"); // << moved from response_format
-            if (verbosity != null && !verbosity.isBlank()) {
-                text.put("verbosity", verbosity); // low|medium|high
-            }
-            body.put("text", text);
-
-            Request request = new Request.Builder()
-                    .url(baseUrl + "/v1/responses")
-                    .header("Authorization", "Bearer " + apiKey)
-                    .header("Content-Type", "application/json")
-                    .post(RequestBody.create(objectMapper.writeValueAsBytes(body), JSON))
-                    .build();
-
-            try (Response resp = http.newCall(request).execute()) {
-                if (!resp.isSuccessful()) {
-                    String errorBody = resp.body() != null ? resp.body().string() : "";
-                    throw new RuntimeException("OpenAI call failed: HTTP " + resp.code() + " - " + errorBody);
-                }
-                return objectMapper.readTree(resp.body().byteStream());
-            }
-        } catch (IOException e) {
-            throw new RuntimeException("OpenAI call failed", e);
+            var msg = result.getChoices().get(0).getMessage();
+            content = (msg != null && msg.getContent() != null) ? msg.getContent() : "";
+        } catch (Exception e) {
+            throw new RuntimeException("OpenAI chat call failed", e);
         }
+
+        var node = objectMapper.createObjectNode();
+        node.put("output_text", content);
+        return node;
     }
 }
