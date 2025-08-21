@@ -50,18 +50,6 @@ public class CodeChallengeController {
         return ResponseEntity.ok(challenges);
     }
 
-    /**
-     * Create a new challenge for the user
-     */
-    @PostMapping
-    @PreAuthorize("hasRole('USER')")
-    public ResponseEntity<Void> create(
-            @Parameter(hidden = true) @CurrentUser User user
-    ) {
-        service.createChallenge(user);
-        return ResponseEntity.noContent().build();
-    }
-
     @Operation(summary = "Submit an answer to a specific challenge")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Answer submitted successfully"),

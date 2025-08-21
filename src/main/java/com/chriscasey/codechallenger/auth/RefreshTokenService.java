@@ -15,7 +15,7 @@ public class RefreshTokenService {
 
     private final RefreshTokenRepository refreshTokenRepository;
 
-    @Value("${jwt.refresh-expiration}")
+    @Value("${security.jwt.refresh-token.expiration}")
     private Long refreshTokenExpirationMs;
 
     public RefreshToken createRefreshToken(User user) {

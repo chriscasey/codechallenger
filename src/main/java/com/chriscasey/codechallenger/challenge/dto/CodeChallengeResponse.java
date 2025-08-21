@@ -7,7 +7,7 @@ import java.time.LocalDateTime;
 public record CodeChallengeResponse(
         Long id,
         String title,
-        String prompt,
+        String description,
         int difficulty,
         ChallengeStatus status,
         int failedAttempts,

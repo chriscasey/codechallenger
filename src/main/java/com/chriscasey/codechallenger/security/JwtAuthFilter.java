@@ -23,6 +23,7 @@ public class JwtAuthFilter extends OncePerRequestFilter {
 
     private final JwtService jwtService;
     private final CustomUserDetailsService userDetailsService;
+    private final UserRepository userRepository;
 
     @Override
     protected void doFilterInternal(
@@ -48,13 +49,10 @@ public class JwtAuthFilter extends OncePerRequestFilter {
 
         if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
             UserDetails userDetails = userDetailsService.loadUserByUsername(username);
-            if (jwtService.isTokenValid(token, /* your domain user not available here; rely on username match */ 
-                    // If you prefer, adjust JwtService.isTokenValid to accept username instead
-                    // or just trust the signature + expiry verification here.
-                    new com.chriscasey.codechallenger.auth.User()
-            )) {
+            var domainUser = userRepository.findByEmail(username).orElse(null);
+            if (domainUser != null && jwtService.isTokenValid(token, domainUser)) {
                 UsernamePasswordAuthenticationToken authToken =
-                        new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
+                        new UsernamePasswordAuthenticationToken(domainUser, null, userDetails.getAuthorities());
                 authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
                 SecurityContextHolder.getContext().setAuthentication(authToken);
             }

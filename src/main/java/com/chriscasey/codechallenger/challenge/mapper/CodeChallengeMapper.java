@@ -10,7 +10,7 @@ public class CodeChallengeMapper {
         return new CodeChallengeResponse(
                 challenge.getId(),
                 challenge.getTitle(),
-                challenge.getPrompt(),
+                challenge.getDescription(),
                 challenge.getDifficulty(),
                 challenge.getStatus(),
                 challenge.getFailedAttempts(),
@@ -23,7 +23,7 @@ public class CodeChallengeMapper {
         return new AdminChallengeResponse(
                 challenge.getId(),
                 challenge.getTitle(),
-                challenge.getPrompt(),
+                challenge.getDescription(),
                 challenge.getDifficulty(),
                 challenge.getStatus(),
                 challenge.getFailedAttempts(),

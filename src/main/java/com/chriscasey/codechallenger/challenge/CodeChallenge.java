@@ -32,8 +32,6 @@ public class CodeChallenge {
     @Column(nullable = false, length = 200)
     private String title;
 
-    private String prompt;
-
     @Column(nullable = false, columnDefinition = "text")
     private String description;
 

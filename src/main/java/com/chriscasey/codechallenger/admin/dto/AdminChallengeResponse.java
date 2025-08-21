@@ -7,10 +7,10 @@ import java.time.LocalDateTime;
 public record AdminChallengeResponse(
         Long id,
         String title,
-        String prompt,
+        String description,
         int difficulty,
         ChallengeStatus status,
         int failedAttempts,
         LocalDateTime completedAt,
-        Integer solution
+        int solution
 ) {}

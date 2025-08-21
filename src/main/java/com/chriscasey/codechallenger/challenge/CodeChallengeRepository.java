@@ -15,4 +15,10 @@ public interface CodeChallengeRepository extends JpaRepository<CodeChallenge, Lo
 
     // Fetch challenges for multiple users to avoid N+1 in admin listing
     List<CodeChallenge> findByUserIn(List<User> users);
+
+    // Or if you want to be more explicit, add this method:
+    default long countIncompleteByUser(User user) {
+        return countByUserAndStatus(user, ChallengeStatus.PENDING);
+    }
+
 }

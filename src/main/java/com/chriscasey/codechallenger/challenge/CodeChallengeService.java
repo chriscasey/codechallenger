@@ -5,6 +5,7 @@ import com.chriscasey.codechallenger.challenge.dto.CodeChallengeResponse;
 import com.chriscasey.codechallenger.challenge.dto.GeneratedChallenge;
 import com.chriscasey.codechallenger.challenge.mapper.CodeChallengeMapper;
 import com.chriscasey.codechallenger.exception.NotFoundException;
+import com.chriscasey.codechallenger.exception.TooManyChallengesException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -19,14 +20,11 @@ public class CodeChallengeService {
     private final CodeChallengeRepository repository;
     private final CodeChallengeGenerator generator;
 
+    private static final int MAX_INCOMPLETE_CHALLENGES = 5;
+
     @Transactional(readOnly = true)
     public List<CodeChallenge> getAllForUser(User user) {
         return repository.findByUser(user);
-    }
-
-    public void createChallenge(User user) {
-        int difficulty = determineDifficulty(user);
-        generateAndPersistChallenge(user, difficulty);
     }
 
     @Transactional
@@ -70,6 +68,7 @@ public class CodeChallengeService {
 
     @Transactional
     public CodeChallengeResponse generateNewChallenge(User user) {
+        validateChallengeLimit(user);
         int difficulty = determineDifficulty(user);
         CodeChallenge created = generateAndPersistChallenge(user, difficulty);
         return CodeChallengeMapper.toResponse(created);
@@ -77,9 +76,21 @@ public class CodeChallengeService {
 
     @Transactional
     public CodeChallengeResponse generateNewChallenge(User user, Integer overrideDifficulty) {
+        validateChallengeLimit(user);
         int difficulty = (overrideDifficulty != null) ? clampDifficulty(overrideDifficulty) : determineDifficulty(user);
         CodeChallenge created = generateAndPersistChallenge(user, difficulty);
         return CodeChallengeMapper.toResponse(created);
+    }
+
+    // Validate that user doesn't have too many incomplete challenges
+    private void validateChallengeLimit(User user) {
+        long incompleteCount = repository.countByUserAndStatus(user, ChallengeStatus.PENDING);
+        if (incompleteCount >= MAX_INCOMPLETE_CHALLENGES) {
+            throw new TooManyChallengesException(
+                String.format("You already have %d incomplete challenges. Complete or skip some before generating new ones.", 
+                    MAX_INCOMPLETE_CHALLENGES)
+            );
+        }
     }
 
     // Consolidated generation/persist logic
