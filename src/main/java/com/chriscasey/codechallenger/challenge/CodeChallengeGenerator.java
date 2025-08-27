@@ -34,11 +34,12 @@ public class CodeChallengeGenerator {
             No code fences, no extra keys, no surrounding text. Output JSON object ONLY.
             """;
 
+        String MAX_DIFFICULTY = "5";
         String user = """
-            Create a puzzle at difficulty %d.
+            Create a puzzle at difficulty %d out of 5.
             Theme: arrays, loops, and simple math.
             Ensure the answer is a single integer.
-            """.formatted(safeDifficulty);
+            """.formatted(safeDifficulty, MAX_DIFFICULTY);
 
         JsonNode resp = openAi.createResponse(system, user);
         String content = extractText(resp); // get the model's raw JSON string

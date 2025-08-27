@@ -29,7 +29,7 @@ public class AuthService {
                 .build();
 
         userRepository.save(user);
-        challengeService.createChallenge(user); // create initial coding challenge
+        challengeService.generateNewChallenge(user); // create initial coding challenge
 
         String jwtToken = jwtService.generateToken(new HashMap<>(), user);
         RefreshToken refreshToken = refreshTokenService.createRefreshToken(user);

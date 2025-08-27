@@ -7,6 +7,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
+import java.util.Optional;
 import java.util.UUID;
 
 @Service
@@ -19,12 +20,22 @@ public class RefreshTokenService {
     private Long refreshTokenExpirationMs;
 
     public RefreshToken createRefreshToken(User user) {
-        RefreshToken refreshToken = RefreshToken.builder()
-                .user(user)
-                .token(UUID.randomUUID().toString())
-                .expiryDate(Instant.now().plusMillis(refreshTokenExpirationMs))
-                .build();
-
+        // Check if a refresh token already exists for this user
+        Optional<RefreshToken> existingTokenOpt = refreshTokenRepository.findByUser(user);
+    
+        RefreshToken refreshToken;
+        if (existingTokenOpt.isPresent()) {
+            refreshToken = existingTokenOpt.get();
+            refreshToken.setToken(UUID.randomUUID().toString());
+            refreshToken.setExpiryDate(Instant.now().plusMillis(refreshTokenExpirationMs));
+        } else {
+            // Create new token
+            refreshToken = new RefreshToken();
+            refreshToken.setUser(user);
+            refreshToken.setToken(UUID.randomUUID().toString());
+            refreshToken.setExpiryDate(Instant.now().plusMillis(refreshTokenExpirationMs));
+        }
+    
         return refreshTokenRepository.save(refreshToken);
     }
 
@@ -42,9 +53,4 @@ public class RefreshTokenService {
                 .orElseThrow(() -> new RefreshTokenException("Invalid or expired refresh token"));
     }
 
-    @Transactional
-    public RefreshToken rotateRefreshToken(User user, String oldToken) {
-        refreshTokenRepository.deleteByToken(oldToken);
-        return createRefreshToken(user);
-    }
 }
