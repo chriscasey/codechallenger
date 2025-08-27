@@ -28,6 +28,12 @@ public class GlobalExceptionHandler {
         return build(HttpStatus.NOT_FOUND, "Not Found", ex.getMessage(), req, null);
     }
 
+    // Rate limiting for challenge submissions
+    @ExceptionHandler(SubmissionRateLimitException.class)
+    public ResponseEntity<ErrorResponse> handleSubmissionRateLimit(SubmissionRateLimitException ex, HttpServletRequest req) {
+        return build(HttpStatus.TOO_MANY_REQUESTS, "Rate Limited", ex.getMessage(), req, null);
+    }
+
     // Business-rule conflict (e.g., submitting a non-pending challenge)
     @ExceptionHandler(IllegalStateException.class)
     public ResponseEntity<ErrorResponse> handleIllegalState(IllegalStateException ex, HttpServletRequest req) {

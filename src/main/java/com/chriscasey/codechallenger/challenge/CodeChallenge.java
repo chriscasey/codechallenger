@@ -44,6 +44,9 @@ public class CodeChallenge {
     @Column(nullable = false)
     private int failedAttempts;
 
+    @Column(name = "last_attempt_time")
+    private LocalDateTime lastAttemptTime;
+
     private LocalDateTime completedAt;
 
     @Enumerated(EnumType.STRING)

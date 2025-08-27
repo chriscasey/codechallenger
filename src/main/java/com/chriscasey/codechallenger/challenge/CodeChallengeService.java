@@ -5,6 +5,7 @@ import com.chriscasey.codechallenger.challenge.dto.CodeChallengeResponse;
 import com.chriscasey.codechallenger.challenge.dto.GeneratedChallenge;
 import com.chriscasey.codechallenger.challenge.mapper.CodeChallengeMapper;
 import com.chriscasey.codechallenger.exception.NotFoundException;
+import com.chriscasey.codechallenger.exception.SubmissionRateLimitException;
 import com.chriscasey.codechallenger.exception.TooManyChallengesException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -19,6 +20,7 @@ public class CodeChallengeService {
 
     private final CodeChallengeRepository repository;
     private final CodeChallengeGenerator generator;
+    private final SubmissionRateLimitService submissionRateLimitService;
 
     private static final int MAX_INCOMPLETE_CHALLENGES = 5;
 
@@ -32,18 +34,24 @@ public class CodeChallengeService {
         CodeChallenge challenge = (CodeChallenge) repository.findByIdAndUser(challengeId, user)
                 .orElseThrow(() -> new NotFoundException("Challenge not found"));
 
+        // Check rate limiting
+        if (!submissionRateLimitService.canSubmit(challenge)) {
+            long remainingMinutes = submissionRateLimitService.getRemainingCooldownMinutes(challenge);
+            throw new SubmissionRateLimitException(remainingMinutes);
+        }
+
         if (challenge.getStatus() != ChallengeStatus.PENDING) {
             throw new IllegalStateException("Challenge already completed or skipped");
         }
 
+        submissionRateLimitService.recordAttempt(challenge);
         if (challenge.getSolution() == answer) {
             challenge.setStatus(ChallengeStatus.COMPLETED);
             challenge.setCompletedAt(LocalDateTime.now());
         } else {
             challenge.setFailedAttempts(challenge.getFailedAttempts() + 1);
         }
-
-        // Rely on JPA dirty checking — no explicit save needed within @Transactional
+        
         return CodeChallengeMapper.toResponse(challenge);
     }
 
